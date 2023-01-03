@@ -1,0 +1,243 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id
+  first_name    String
+  last_name     String?
+  email         String      @unique
+  email_actived Boolean     @default(true)
+  password      String
+  user_type     Role        @default(COLABORATOR)
+  document_rg   String
+  document_cpf  String      @unique
+  last_access   DateTime    @default(now())
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  address       Address[]
+  user_phone    UserPhone[]
+  orders        Order[]
+
+  @@index([document_cpf, email])
+  @@map("users")
+}
+
+enum Role {
+  COLABORATOR
+  ADMINSTORE
+  CORPORATE
+}
+
+model Address {
+  id         String   @id
+  zip_code   String
+  street     String
+  number     String?
+  district   String
+  city       String
+  state      String
+  uf         String
+  fk_id_user String?
+  user       User?    @relation(fields: [fk_id_user], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  companie Companie[]
+  store    Store[]
+
+  @@index([street, city, district, state])
+  @@map("addresses")
+}
+
+model UserPhone {
+  id         String    @id
+  ddd        Int
+  phone      String    @unique
+  type       PhoneType @default(FIXED)
+  fk_id_user String
+  user       User      @relation(fields: [fk_id_user], references: [id])
+
+  @@index([ddd, phone])
+  @@map("user_phones")
+}
+
+model CompaniePhone {
+  id             String    @id
+  ddd            Int
+  phone          String    @unique
+  type           PhoneType @default(FIXED)
+  fk_id_companie String
+  companie       Companie  @relation(fields: [fk_id_companie], references: [id])
+
+  @@index([ddd, phone])
+  @@map("companie_phones")
+}
+
+model StorePhone {
+  id          String    @id
+  ddd         Int
+  phone       String    @unique
+  type        PhoneType @default(FIXED)
+  fk_id_store String
+  store       Store     @relation(fields: [fk_id_store], references: [id])
+
+  @@index([ddd, phone])
+  @@map("store_phones")
+}
+
+enum PhoneType {
+  FIXED
+  MOBILE
+}
+
+model Companie {
+  id             String          @id
+  social_name    String
+  fantasy_name   String?
+  cnpj           String          @unique
+  email          String          @unique
+  fk_id_address  String
+  address        Address         @relation(fields: [fk_id_address], references: [id])
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  companie_phone CompaniePhone[]
+
+  @@index([cnpj])
+  @@map("companies")
+}
+
+model Store {
+  id            String       @id
+  store_type    StoreType    @default(MATRIZ)
+  social_name   String
+  fantasy_name  String?
+  cnpj          String       @unique
+  email         String       @unique
+  fk_id_address String
+  address       Address      @relation(fields: [fk_id_address], references: [id])
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+  store_phone   StorePhone[]
+  order         Order[]
+
+  @@index([cnpj])
+  @@map("stores")
+}
+
+enum StoreType {
+  MATRIZ
+  FILIAL
+}
+
+model Collaborator {
+  id                    String   @id
+  admission             DateTime
+  work_function         String?
+  work_sector           String?
+  payment_amount        Decimal
+  payment_date_limit    DateTime
+  date_discount_payment DateTime
+  aproved_value         Float
+  aproved_recurrences   Int
+  regularity            Boolean
+  note                  String?
+  order                 Order[]
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([work_function, work_sector, regularity])
+  @@map("collaborators")
+}
+
+model Product {
+  id               String            @id
+  name             String
+  slug             String            @unique
+  cod              String
+  qtd              Int
+  description      String?
+  value            Float
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+  category_product CategoryProduct[]
+
+  @@index([slug, name, cod])
+  @@map("products")
+}
+
+model Category {
+  id               String            @id
+  category         String
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+  category_product CategoryProduct[]
+
+  @@index([category])
+  @@map("categories")
+}
+
+model CategoryProduct {
+  id             String   @id
+  fk_id_category String
+  category       Category @relation(fields: [fk_id_category], references: [id])
+  fk_id_product  String
+  product        Product  @relation(fields: [fk_id_product], references: [id])
+  created_at     DateTime @default(now())
+
+  @@map("categories_products")
+}
+
+model Order {
+  id                 String         @id
+  generate_cod       String
+  status             OrderStatus    @default(OPEN)
+  note               String?
+  total_value        Float
+  qtd_recurences     Int
+  value_recurences   Int
+  date_payment       DateTime
+  descount_percent   Int
+  descount_value     Float
+  fk_id_user         String
+  user               User           @relation(fields: [fk_id_user], references: [id])
+  fk_id_store        String
+  store              Store          @relation(fields: [fk_id_store], references: [id])
+  fk_id_collaborator String
+  collaborator       Collaborator   @relation(fields: [fk_id_collaborator], references: [id])
+  product_order      ProductOrder[]
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+
+  @@index([status, id, generate_cod])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  OPEN
+  FINISHED
+}
+
+model ProductOrder {
+  id          String   @id
+  name        String
+  cod         String
+  qtd         Int
+  description String?
+  value       Float
+  fk_id_order String
+  order       Order    @relation(fields: [fk_id_order], references: [id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([name, cod])
+  @@map("products_orders")
+}
